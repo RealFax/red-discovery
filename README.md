@@ -7,6 +7,8 @@ Get red discovery:
 go get github.com/RealFax/red-discovery@latest
 ```
 
+Note: In go1.21, you need to enable `GOEXPERIMENT=loopvar`, this issue will be solved in the near future
+
 ## API
 
 ### Register a service
