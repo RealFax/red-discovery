@@ -1,7 +1,7 @@
 package maputil_test
 
 import (
-	"github.com/oops-dev/merchant/pkg/maputil"
+	"github.com/RealFax/red-discovery/internal/maputil"
 	"testing"
 )
 

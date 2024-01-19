@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"context"
+	"github.com/RealFax/RedQueen/client"
 	"github.com/RealFax/red-discovery/internal/balancer"
 	"github.com/RealFax/red-discovery/internal/maputil"
 	"google.golang.org/grpc"
@@ -32,12 +33,12 @@ type Service interface {
 	// AliveConn returns the grpc connection of all service endpoints on internal.
 	//
 	// DON'T CLOSE GRPC CONN
-	AliveConn() map[string]*GrpcPoolConn
+	AliveConn() map[string]*grpc.ClientConn
 
 	// NextAliveConn returns the internal grpc connection through the load balancing algorithm.
 	//
 	// DON"T CLOSE GRPC CONN
-	NextAliveConn() (*GrpcPoolConn, error)
+	NextAliveConn() (*grpc.ClientConn, error)
 
 	// CloseAliveConn Close internal all grpc conn.
 	CloseAliveConn()
@@ -56,7 +57,7 @@ type service struct {
 	aliveConnCount atomic.Int64
 	naming         *atomic.Pointer[string]
 	endpoints      *maputil.Map[string, *Endpoint] // map<id, *Endpoint>
-	aliveConn      *maputil.Map[string, *GrpcPool /**grpc.ClientConn*/]
+	aliveConn      *maputil.Map[string, *client.ConnectionManager /**grpc.ClientConn*/]
 	loadBalance    balancer.LoadBalance[string, *Endpoint]
 }
 
@@ -66,7 +67,7 @@ func (s *service) dialEndpoints(endpoints []*Endpoint) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			pool, err := NewGrpcPool(s.ctx, endpoint, s.dialOpts...)
+			pool, err := client.NewConnectionManager(s.ctx, endpoint.PeerAddress, 16, s.dialOpts...)
 			if err != nil {
 				s.endpoints.Delete(endpoint.ID)
 				return
@@ -97,7 +98,7 @@ func (s *service) WithEndpointNaming(endpointID string) string {
 
 func (s *service) Alive() bool {
 	count := 0
-	s.aliveConn.Range(func(_ string, _ *GrpcPool) bool {
+	s.aliveConn.Range(func(_ string, _ *client.ConnectionManager) bool {
 		count++
 		return true
 	})
@@ -144,13 +145,13 @@ func (s *service) RangeEndpoints(f func(endpoint *Endpoint) bool) {
 	})
 }
 
-func (s *service) AliveConn() map[string]*GrpcPoolConn {
+func (s *service) AliveConn() map[string]*grpc.ClientConn {
 	var (
 		err error
-		m   = make(map[string]*GrpcPoolConn)
+		m   = make(map[string]*grpc.ClientConn)
 	)
-	s.aliveConn.Range(func(key string, value *GrpcPool) bool {
-		if m[key], err = value.Alloc(true); err != nil {
+	s.aliveConn.Range(func(key string, manager *client.ConnectionManager) bool {
+		if m[key], err = manager.Alloc(); err != nil {
 			return false
 		}
 		return true
@@ -158,7 +159,7 @@ func (s *service) AliveConn() map[string]*GrpcPoolConn {
 	return m
 }
 
-func (s *service) NextAliveConn() (*GrpcPoolConn, error) {
+func (s *service) NextAliveConn() (*grpc.ClientConn, error) {
 	endpoint, err := s.loadBalance.Next()
 	if err != nil {
 		return nil, err
@@ -167,14 +168,14 @@ func (s *service) NextAliveConn() (*GrpcPoolConn, error) {
 	if !ok {
 		return nil, ErrServiceUnreachable
 	}
-	return pool.Alloc(true)
+	return pool.Alloc()
 }
 
 func (s *service) CloseAliveConn() {
-	s.aliveConn.Range(func(key string, value *GrpcPool) bool {
+	s.aliveConn.Range(func(key string, manager *client.ConnectionManager) bool {
 		s.aliveConn.Delete(key)
 		s.aliveConnCount.Add(-1)
-		_ = value.Close()
+		_ = manager.Close()
 		return true
 	})
 }
@@ -241,7 +242,7 @@ func NewService(ctx context.Context, naming string, dialOpts ...grpc.DialOption)
 		dialOpts:    dialOpts,
 		naming:      &_naming,
 		endpoints:   maputil.New[string, *Endpoint](),
-		aliveConn:   maputil.New[string, *GrpcPool](),
+		aliveConn:   maputil.New[string, *client.ConnectionManager](),
 		loadBalance: balancer.NewRoundRobin[string, *Endpoint](),
 	}
 }

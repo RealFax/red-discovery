@@ -1,6 +1,7 @@
 package discovery_test
 
 import (
+	rClient "github.com/RealFax/RedQueen/client"
 	discovery "github.com/RealFax/red-discovery"
 	"sync"
 )
@@ -32,7 +33,7 @@ func ExampleDiscoveryAndRegister_Register() {
 }
 
 func ExampleDiscoveryAndRegister_UseListener() {
-	listenerID, err := client.UseListener(naming, func(ready bool, conn *discovery.GrpcPoolConn, wg *sync.WaitGroup) {
+	listenerID, err := client.UseListener(naming, func(ready bool, conn *rClient.BalancerConn, wg *sync.WaitGroup) {
 		// handle listener callback
 		// you should defer called wg.Done
 	})

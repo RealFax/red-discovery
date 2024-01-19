@@ -1,7 +1,7 @@
 package balancer
 
 import (
-	"github.com/oops-dev/merchant/pkg/maputil"
+	"github.com/RealFax/red-discovery/internal/maputil"
 	"slices"
 	"sync/atomic"
 )

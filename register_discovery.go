@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-type ListenCallbackFunc func(ready bool, conn *GrpcPoolConn, wg *sync.WaitGroup)
+type ListenCallbackFunc func(ready bool, conn *grpc.ClientConn, wg *sync.WaitGroup)
 
 type DiscoveryAndRegister interface {
 	// ReleaseDiscovery cancel the discovery of a Naming.
@@ -53,7 +53,6 @@ func (r *discoveryAndRegister) notifyStateChange(srv Service) {
 	}
 
 	var (
-		timeout = time.NewTimer(time.Minute * 1)
 		wg      = &sync.WaitGroup{}
 		state   = srv.Alive()
 		conn, _ = srv.NextAliveConn()
@@ -67,12 +66,6 @@ func (r *discoveryAndRegister) notifyStateChange(srv Service) {
 
 	go func() {
 		wg.Wait()
-		timeout.Stop()
-	}()
-
-	go func() {
-		<-timeout.C
-		conn.Release()
 	}()
 }
 

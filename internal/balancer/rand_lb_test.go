@@ -1,7 +1,7 @@
 package balancer_test
 
 import (
-	"github.com/oops-dev/merchant/pkg/balancer"
+	"github.com/RealFax/red-discovery/internal/balancer"
 	"strconv"
 	"testing"
 )
