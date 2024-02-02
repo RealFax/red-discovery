@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"sync/atomic"
 )
 
 var (
@@ -14,28 +15,33 @@ var (
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
 	}
+
+	namespace atomic.Pointer[string]
 )
+
+func Namespace() string {
+	if ns := namespace.Load(); ns != nil {
+		return *ns
+	}
+	return ""
+}
+
+func SetNamespace(ns string) {
+	if ns != "" {
+		namespace.Store(&ns)
+	}
+}
 
 const (
 	MaxEndpointSize uint64 = 8192
 )
 
 type Client struct {
-	ctx       context.Context
-	dialOpts  []grpc.DialOption
-	client    *client.Client
-	services  *maputil.Map[string, Service]
-	Namespace *string
-
+	ctx      context.Context
+	dialOpts []grpc.DialOption
+	client   *client.Client
+	services *maputil.Map[string, Service]
 	DiscoveryAndRegister
-}
-
-func (c *Client) SetNamespace(namespace string) {
-	if namespace == "" {
-		c.Namespace = nil
-		return
-	}
-	c.Namespace = &namespace
 }
 
 func (c *Client) Service(naming string) (Service, bool) {

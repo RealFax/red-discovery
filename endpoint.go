@@ -79,8 +79,8 @@ func ParseEndpointPath(path string) (string, string, error) {
 	return s[0], s[1], nil
 }
 
-func AutoKeepAlive(ctx context.Context, namespace *string, naming string, client *Client, endpoint *Endpoint) error {
-	err := client.Register(namespace, naming, endpoint)
+func AutoKeepAlive(ctx context.Context, naming string, client *Client, endpoint *Endpoint) error {
+	err := client.Register(naming, endpoint)
 	if err != nil {
 		return errors.Wrap(err, "sdr: AutoKeepAlive")
 	}
@@ -94,7 +94,7 @@ func AutoKeepAlive(ctx context.Context, namespace *string, naming string, client
 				return
 			case <-ticker.C:
 				endpoint.lastUpdated = time.Now().UnixMilli()
-				_ = client.Register(namespace, naming, endpoint)
+				_ = client.Register(naming, endpoint)
 			}
 		}
 	}()

@@ -7,7 +7,7 @@ import (
 )
 
 func ExampleDiscoveryAndRegister_Discovery() {
-	if err := client.Discovery(nil, naming); err != nil {
+	if err := client.Discovery(naming); err != nil {
 		// handle discovery error
 	}
 }
@@ -27,7 +27,7 @@ func ExampleDiscoveryAndRegister_Register() {
 		"name": "super-node-1",
 	}))
 
-	if err := client.Register(nil, naming, endpoint); err != nil {
+	if err := client.Register(naming, endpoint); err != nil {
 		// handler register error
 	}
 }

@@ -18,13 +18,13 @@ type DiscoveryAndRegister interface {
 	ReleaseDiscovery(naming string)
 
 	// Discovery a Naming, will open a goroutine to achieve continuous discovery of Naming.
-	Discovery(namespace *string, naming string) error
+	Discovery(naming string) error
 
 	// Unregister one or more services using an Endpoint ID.
-	Unregister(namespace *string, naming string, ids ...string) error
+	Unregister(naming string, ids ...string) error
 
 	// Register one or more services with Naming.
-	Register(namespace *string, naming string, endpoints ...*Endpoint) error
+	Register(naming string, endpoints ...*Endpoint) error
 
 	// UseListener
 	//
@@ -167,7 +167,7 @@ func (r *discoveryAndRegister) ReleaseDiscovery(naming string) {
 	cancel()
 }
 
-func (r *discoveryAndRegister) Discovery(namespace *string, naming string) error {
+func (r *discoveryAndRegister) Discovery(naming string) error {
 	// check discovery status
 	if exist := r.discovery.Exist(naming); exist {
 		if !r.services.Exist(naming) {
@@ -176,7 +176,7 @@ func (r *discoveryAndRegister) Discovery(namespace *string, naming string) error
 		return ErrDiscoveryHasExist
 	}
 
-	go r.discoveryDaemon(namespace, naming)
+	go r.discoveryDaemon(namespace.Load(), naming)
 
 	values, err := r.kvClient.PrefixScan(
 		r.ctx,
@@ -184,7 +184,7 @@ func (r *discoveryAndRegister) Discovery(namespace *string, naming string) error
 		0,
 		MaxEndpointSize,
 		nil,
-		namespace,
+		namespace.Load(),
 	)
 	if err != nil {
 		return nil
@@ -209,7 +209,7 @@ func (r *discoveryAndRegister) Discovery(namespace *string, naming string) error
 	return nil
 }
 
-func (r *discoveryAndRegister) Unregister(namespace *string, naming string, ids ...string) (err error) {
+func (r *discoveryAndRegister) Unregister(naming string, ids ...string) (err error) {
 	srv, ok := r.services.Load(naming)
 	if !ok {
 		return ErrServiceNotExist
@@ -219,7 +219,7 @@ func (r *discoveryAndRegister) Unregister(namespace *string, naming string, ids 
 		if err = r.kvClient.Delete(
 			r.ctx,
 			hack.String2Bytes(srv.WithEndpointNaming(id)),
-			namespace,
+			namespace.Load(),
 		); err != nil {
 			return
 		}
@@ -231,7 +231,7 @@ func (r *discoveryAndRegister) Unregister(namespace *string, naming string, ids 
 	return
 }
 
-func (r *discoveryAndRegister) Register(namespace *string, naming string, endpoints ...*Endpoint) (err error) {
+func (r *discoveryAndRegister) Register(naming string, endpoints ...*Endpoint) (err error) {
 	srv, ok := r.services.Load(naming)
 	if !ok {
 		srv = NewService(r.ctx, naming, r.dialOpts...)
@@ -247,7 +247,7 @@ func (r *discoveryAndRegister) Register(namespace *string, naming string, endpoi
 			hack.String2Bytes(endpoint.WithNaming(naming)),
 			endpointOut,
 			endpoint.TTL(),
-			namespace,
+			namespace.Load(),
 		); err != nil {
 			continue
 		}
